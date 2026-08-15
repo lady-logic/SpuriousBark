@@ -97,9 +97,13 @@ so you can preview it before Snowflake is set up.
 
 ## Screenshots / Demo
 
-<!-- TODO: add a screenshot or GIF of the running app here -->
+Dog tax vs. marriages:
 
-![Spurious Bark Screenshot](docs/screenshot-placeholder.png)
+![Dog tax revenue vs. marriages](docs/Marriage.png)
+
+Dog tax vs. beer production:
+
+![Dog tax revenue vs. beer production](docs/Beer.png)
 
 ## Hackathon context
 
@@ -111,6 +115,11 @@ Built for the [DEV Weekend Challenge: Dog Days Edition](https://dev.to/challenge
 
 ## License / data sources
 
-Data sources are official German government statistics (e.g. Federal
-Statistical Office / municipal statistics offices). Please add proper
-attribution depending on the datasets you use.
+All data is sourced from the German Federal Statistical Office (Statistisches
+Bundesamt, Destatis) via [GENESIS-Online](https://www-genesis.destatis.de):
+
+- Dog tax revenue: table [71211-0001](https://www-genesis.destatis.de/genesis/online?operation=table&code=71211-0001) — "Steuereinnahmen: Deutschland, Jahre, Steuerarten vor der Steuerverteilung"
+- Marriages: table [12611-0010](https://www-genesis.destatis.de/genesis/online?operation=table&code=12611-0010) — "Eheschließungen: Bundesländer, Jahre" (summed across all 16 states)
+- Beer production: table [42131-0004](https://www-genesis.destatis.de/genesis/online?operation=table&code=42131-0004) — "Produktion im Verarbeitenden Gewerbe: Deutschland, Jahre, Güterverzeichnis (9-Steller)"
+
+© Statistisches Bundesamt (Destatis), 2026
