@@ -9,8 +9,8 @@ A weekend hackathon project for the **DEV Weekend Challenge: Dog Days Edition**
 ## What is this?
 
 **Spurious Bark** compares dog tax revenue collected by German municipalities
-against a second time series picked from a dropdown (e.g. marriages, bicycle
-thefts, live births). The app computes the statistical correlation between
+against a second time series picked from a dropdown (e.g. marriages, beer
+production, live births). The app computes the statistical correlation between
 the two series and asks **Snowflake Cortex** (`COMPLETE`) to make up a silly,
 completely fake explanation for it — in the style of
 [tylervigen.com/spurious-correlations](https://tylervigen.com/spurious-correlations).
@@ -54,7 +54,7 @@ template in [`sql/load_data.sql`](sql/load_data.sql)). Expected format:
 
 - `dog_tax_revenue.csv` → `jahr,betrag_euro`
 - `comparison_series.csv` → `jahr,serie_name,wert` (with `serie_name` values
-  like `eheschliessungen`, `fahrraddiebstaehle`, `lebendgeborene`)
+  like `eheschliessungen`, `bier`, `lebendgeborene`)
 
 > ℹ️ `SNOWFLAKE.CORTEX.COMPLETE()` requires Cortex to be available in your
 > Snowflake region/edition (e.g. AWS us-west-2; trial accounts usually work).

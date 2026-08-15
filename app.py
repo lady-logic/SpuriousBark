@@ -41,12 +41,11 @@ st.markdown(
     h1, h2, h3 {
         color: #6B3F1D;
     }
-    .bark-card {
+    div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
         border-radius: 24px;
-        padding: 1.75rem 2rem;
         box-shadow: 0 8px 24px rgba(107, 63, 29, 0.12);
-        border: 3px dashed #F4A261;
+        border: 3px dashed #F4A261 !important;
         margin-bottom: 1.5rem;
     }
     .bark-badge {
@@ -92,8 +91,8 @@ st.markdown('<div class="paw-divider">🐾 🐾 🐾 🐾 🐾 🐾 🐾</div>',
 
 COMPARISON_LABELS = {
     "eheschliessungen": "💍 Marriages",
-    "fahrraddiebstaehle": "🚲 Bicycle thefts",
     "lebendgeborene": "👶 Live births",
+    "bier": "🍺 Beer production (hl)",
 }
 
 if DEMO_MODE:
@@ -106,23 +105,23 @@ if DEMO_MODE:
 # --------------------------------------------------------------------------
 # Demo data (used as long as no Snowflake credentials are set in .env)
 # --------------------------------------------------------------------------
-_DEMO_YEARS = list(range(2010, 2024))
+_DEMO_YEARS = list(range(2016, 2026))
 
 
 def _demo_dog_tax_df() -> pd.DataFrame:
     random.seed(42)
-    values = [90_000 + i * 8_500 + random.randint(-3000, 3000) for i in range(len(_DEMO_YEARS))]
+    values = [330_000_000 + i * 10_000_000 + random.randint(-3_000_000, 3_000_000) for i in range(len(_DEMO_YEARS))]
     return pd.DataFrame({"JAHR": _DEMO_YEARS, "BETRAG_EURO": values})
 
 
 def _demo_comparison_df(serie_name: str) -> pd.DataFrame:
     random.seed(hash(serie_name) % 1000)
     base = {
-        "eheschliessungen": 380_000,
-        "fahrraddiebstaehle": 300_000,
+        "eheschliessungen": 400_000,
         "lebendgeborene": 700_000,
+        "bier": 75_000_000,
     }.get(serie_name, 100_000)
-    values = [base - i * random.randint(500, 4000) + random.randint(-5000, 5000) for i in range(len(_DEMO_YEARS))]
+    values = [base - i * random.randint(int(base * 0.002), int(base * 0.01)) + random.randint(int(-base * 0.01), int(base * 0.01)) for i in range(len(_DEMO_YEARS))]
     return pd.DataFrame({"JAHR": _DEMO_YEARS, "WERT": values})
 
 
@@ -205,9 +204,10 @@ def compute_correlation(serie_name: str) -> float:
     return float(row[0]) if row and row[0] is not None else float("nan")
 
 
-def generate_explanation(serie_label: str, correlation: float) -> str:
+def generate_explanation(serie_label: str, correlation: float) -> tuple[str, bool]:
+    """Returns (explanation, used_cortex)."""
     if DEMO_MODE:
-        return random.choice(_DEMO_EXPLANATIONS)
+        return random.choice(_DEMO_EXPLANATIONS), False
     conn = get_connection()
     model = os.environ.get("CORTEX_MODEL", "mistral-large2")
     prompt = (
@@ -220,10 +220,13 @@ def generate_explanation(serie_label: str, correlation: float) -> str:
         "a coincidence and correlation isn't causation."
     )
     escaped_prompt = prompt.replace("'", "''")
-    row = conn.cursor().execute(
-        f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{model}', '{escaped_prompt}')"
-    ).fetchone()
-    return row[0] if row else "🐕 No explanation received."
+    try:
+        row = conn.cursor().execute(
+            f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{model}', '{escaped_prompt}')"
+        ).fetchone()
+        return (row[0] if row else "🐕 No explanation received."), True
+    except Exception:
+        return random.choice(_DEMO_EXPLANATIONS), False
 
 
 # --------------------------------------------------------------------------
@@ -255,79 +258,79 @@ merged = pd.merge(
     how="inner",
 )
 
-st.markdown('<div class="bark-card">', unsafe_allow_html=True)
-st.markdown('<span class="bark-badge">📈 Time series comparison</span>', unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown('<span class="bark-badge">📈 Time series comparison</span>', unsafe_allow_html=True)
 
-col1, col2 = st.columns([3, 1])
+    col1, col2 = st.columns([3, 1])
 
-with col1:
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=merged["JAHR"],
-            y=merged["Dog tax revenue (€)"],
-            name="🐕 Dog tax revenue (€)",
-            mode="lines+markers",
-            line=dict(color="#E76F51", width=4),
-            marker=dict(size=8),
+    with col1:
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=merged["JAHR"],
+                y=merged["Dog tax revenue (€)"],
+                name="🐕 Dog tax revenue (€)",
+                mode="lines+markers",
+                line=dict(color="#E76F51", width=4),
+                marker=dict(size=8),
+            )
         )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=merged["JAHR"],
-            y=merged[series_label],
-            name=series_label,
-            mode="lines+markers",
-            yaxis="y2",
-            line=dict(color="#2A9D8F", width=4, dash="dot"),
-            marker=dict(size=8),
+        fig.add_trace(
+            go.Scatter(
+                x=merged["JAHR"],
+                y=merged[series_label],
+                name=series_label,
+                mode="lines+markers",
+                yaxis="y2",
+                line=dict(color="#2A9D8F", width=4, dash="dot"),
+                marker=dict(size=8),
+            )
         )
-    )
-    fig.update_layout(
-        xaxis=dict(title="Year"),
-        yaxis=dict(title="🐕 Dog tax (€)", color="#E76F51"),
-        yaxis2=dict(title=series_label, overlaying="y", side="right", color="#2A9D8F"),
-        legend=dict(orientation="h", y=-0.2),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        margin=dict(t=20, b=20),
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            xaxis=dict(title="Year"),
+            yaxis=dict(title="🐕 Dog tax (€)", color="#E76F51"),
+            yaxis2=dict(title=series_label, overlaying="y", side="right", color="#2A9D8F"),
+            legend=dict(orientation="h", y=-0.2),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            margin=dict(t=20, b=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-with col2:
-    st.metric(
-        label="Correlation coefficient",
-        value=f"{correlation:.3f}" if correlation == correlation else "n/a",
-    )
-    if correlation == correlation:
-        if abs(correlation) > 0.8:
-            st.markdown("🔥 **Suspiciously strong!**")
-        elif abs(correlation) > 0.5:
-            st.markdown("🐾 Somewhat strong.")
+    with col2:
+        st.metric(
+            label="Correlation coefficient",
+            value=f"{correlation:.3f}" if correlation == correlation else "n/a",
+        )
+        if correlation == correlation:
+            if abs(correlation) > 0.8:
+                st.markdown("🔥 **Suspiciously strong!**")
+            elif abs(correlation) > 0.5:
+                st.markdown("🐾 Somewhat strong.")
+            else:
+                st.markdown("🌱 Pretty weak.")
+        st.caption("Computed with `CORR()` in Snowflake.")
+
+with st.container(border=True):
+    st.markdown('<span class="bark-badge">🧠 Snowflake Cortex explains</span>', unsafe_allow_html=True)
+    st.markdown(f"##### Why do 🐕 dog tax and {series_label} correlate?")
+
+    if st.button("🐶 Woof! Generate explanation"):
+        if correlation != correlation:
+            st.error("Correlation could not be computed — please check the data.")
         else:
-            st.markdown("🌱 Pretty weak.")
-    st.caption("Computed with `CORR()` in Snowflake.")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown('<div class="bark-card">', unsafe_allow_html=True)
-st.markdown('<span class="bark-badge">🧠 Snowflake Cortex explains</span>', unsafe_allow_html=True)
-st.markdown(f"##### Why do 🐕 dog tax and {series_label} correlate?")
-
-if st.button("🐶 Woof! Generate explanation"):
-    if correlation != correlation:
-        st.error("Correlation could not be computed — please check the data.")
-    else:
-        with st.spinner("Cortex is sniffing around the data... 🐾"):
-            explanation = generate_explanation(series_label, correlation)
-        st.info(explanation)
-        st.caption(
-            "🐕‍🦺 Disclaimer: this explanation was generated by an AI in the style "
-            "of 'Spurious Correlations'. Correlation ≠ causation — this is pure "
-            "dog nonsense for fun."
-        )
-
-st.markdown("</div>", unsafe_allow_html=True)
+            with st.spinner("Cortex is sniffing around the data... 🐾"):
+                explanation, used_cortex = generate_explanation(series_label, correlation)
+            st.info(explanation)
+            if not used_cortex:
+                st.caption(
+                    "⚠️ Snowflake Cortex was unreachable, showing a canned example instead."
+                )
+            st.caption(
+                "🐕‍🦺 Disclaimer: this explanation was generated by an AI in the style "
+                "of 'Spurious Correlations'. Correlation ≠ causation — this is pure "
+                "dog nonsense for fun."
+            )
 
 st.markdown('<div class="paw-divider">🐾 🐾 🐾 🐾 🐾 🐾 🐾</div>', unsafe_allow_html=True)
 st.caption("Made with ❤️ and 🐾 for the DEV Weekend Challenge: Dog Days Edition")
